@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Backend API ────────────────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
+const API_URL = import.meta.env.VITE_API_BASE || "/.netlify/functions/api";
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
 
 async function load() {
