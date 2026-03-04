@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hobbies Tracker</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">HT</div>
+          <div class="brand__text">
+            <div class="brand__title">Hobbies Tracker</div>
+            <div class="brand__subtitle">Exercise + reading + connections</div>
+          </div>
+        </div>
+
+        <nav class="tabs" role="tablist" aria-label="Sections">
+          <button class="tab is-active" role="tab" aria-selected="true" data-route="exercise">Exercise</button>
+          <button class="tab" role="tab" aria-selected="false" data-route="reading">Reading</button>
+          <button class="tab" role="tab" aria-selected="false" data-route="connections">Connections</button>
+          <button class="tab" role="tab" aria-selected="false" data-route="assistant">Assistant</button>
+          <button class="tab" role="tab" aria-selected="false" data-route="insights">Insights</button>
+          <button class="tab" role="tab" aria-selected="false" data-route="settings">Settings</button>
+        </nav>
+      </header>
+
+      <main class="content">
+        <section class="panel is-active" data-panel="exercise" aria-label="Exercise tracking">
+          <div class="panel__header">
+            <h2>Exercise</h2>
+            <p class="muted">Log gym sessions, walks, runs—anything. Track duration, distance, and notes.</p>
+          </div>
+
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">Add workout</div>
+              <form id="exercise-form" class="form">
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Type</span>
+                    <select name="type" required>
+                      <option value="gym">Gym</option>
+                      <option value="walk">Walk</option>
+                      <option value="run">Run</option>
+                      <option value="cycling">Cycling</option>
+                      <option value="yoga">Yoga</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span class="field__label">Date</span>
+                    <input name="date" type="date" required />
+                  </label>
+                </div>
+
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Duration (minutes)</span>
+                    <input name="minutes" type="number" min="0" step="1" placeholder="e.g. 45" />
+                  </label>
+
+                  <label class="field">
+                    <span class="field__label">Distance (km)</span>
+                    <input name="distanceKm" type="number" min="0" step="0.01" placeholder="e.g. 5.0" />
+                  </label>
+                </div>
+
+                <label class="field">
+                  <span class="field__label">Notes</span>
+                  <textarea name="notes" rows="3" placeholder="How did it feel? What did you learn?"></textarea>
+                </label>
+
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Save workout</button>
+                  <button class="btn" type="reset">Clear</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card__title">Recent workouts</div>
+              <div class="toolbar">
+                <input id="exercise-search" class="input" placeholder="Search type, notes…" />
+                <select id="exercise-filter" class="input">
+                  <option value="all">All types</option>
+                  <option value="gym">Gym</option>
+                  <option value="walk">Walk</option>
+                  <option value="run">Run</option>
+                  <option value="cycling">Cycling</option>
+                  <option value="yoga">Yoga</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div id="exercise-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="reading" aria-label="Reading tracker">
+          <div class="panel__header">
+            <h2>Reading</h2>
+            <p class="muted">Add books, save quotes, and keep a “communication log” (notes/discussion) per book.</p>
+          </div>
+
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">Add book</div>
+              <form id="book-form" class="form">
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Title</span>
+                    <input name="title" required placeholder="e.g. Atomic Habits" />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Author</span>
+                    <input name="author" placeholder="e.g. James Clear" />
+                  </label>
+                </div>
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Status</span>
+                    <select name="status">
+                      <option value="to-read">To read</option>
+                      <option value="reading">Reading</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Tags (comma separated)</span>
+                    <input name="tags" placeholder="habits, productivity" />
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field__label">Summary / Notes</span>
+                  <textarea name="notes" rows="3" placeholder="What is this book about? Key ideas…"></textarea>
+                </label>
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Save book</button>
+                  <button class="btn" type="reset">Clear</button>
+                </div>
+              </form>
+
+              <div class="divider"></div>
+
+              <div class="card__title">Add communication note</div>
+              <form id="booknote-form" class="form">
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Book</span>
+                    <select id="booknote-book" name="bookId" required></select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Date</span>
+                    <input id="booknote-date" name="date" type="date" required />
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field__label">Note</span>
+                  <textarea name="text" rows="3" required placeholder="Your thoughts, a discussion, how it connects to life…"></textarea>
+                </label>
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Save note</button>
+                  <button class="btn" type="reset">Clear</button>
+                </div>
+              </form>
+
+              <div class="divider"></div>
+
+              <div class="card__title">Add quote</div>
+              <form id="quote-form" class="form">
+                <label class="field">
+                  <span class="field__label">Book</span>
+                  <select id="quote-book" name="bookId" required></select>
+                </label>
+                <label class="field">
+                  <span class="field__label">Quote</span>
+                  <textarea name="text" rows="3" required placeholder="Paste the quote here…"></textarea>
+                </label>
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Page / location</span>
+                    <input name="location" placeholder="e.g. p. 42" />
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Tags</span>
+                    <input name="tags" placeholder="mindset, habits" />
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field__label">Reflection</span>
+                  <textarea name="reflection" rows="2" placeholder="Why does this matter?"></textarea>
+                </label>
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Save quote</button>
+                  <button class="btn" type="reset">Clear</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card__title">Library</div>
+              <div class="toolbar">
+                <input id="book-search" class="input" placeholder="Search books, authors, tags…" />
+                <select id="book-status" class="input">
+                  <option value="all">All</option>
+                  <option value="to-read">To read</option>
+                  <option value="reading">Reading</option>
+                  <option value="done">Done</option>
+                </select>
+              </div>
+              <div id="book-list" class="list"></div>
+              <div class="divider"></div>
+              <div class="card__title">Communication notes</div>
+              <div class="toolbar">
+                <input id="booknote-search" class="input" placeholder="Search notes…" />
+                <select id="booknote-filter-book" class="input"></select>
+              </div>
+              <div id="booknote-list" class="list"></div>
+              <div class="divider"></div>
+              <div class="card__title">Quotes</div>
+              <div class="toolbar">
+                <input id="quote-search" class="input" placeholder="Search quotes, reflections, tags…" />
+                <select id="quote-filter-book" class="input"></select>
+              </div>
+              <div id="quote-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="connections" aria-label="Book connections">
+          <div class="panel__header">
+            <h2>Connections</h2>
+            <p class="muted">Connect books to each other: “supports”, “contradicts”, “similar to”, or your own relationship.</p>
+          </div>
+
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">Add connection</div>
+              <form id="connection-form" class="form">
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">From</span>
+                    <select id="conn-from" name="fromBookId" required></select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">To</span>
+                    <select id="conn-to" name="toBookId" required></select>
+                  </label>
+                </div>
+                <div class="form__row">
+                  <label class="field">
+                    <span class="field__label">Relationship</span>
+                    <select name="type">
+                      <option value="similar">Similar</option>
+                      <option value="supports">Supports</option>
+                      <option value="contradicts">Contradicts</option>
+                      <option value="inspired-by">Inspired by</option>
+                      <option value="extends">Extends</option>
+                      <option value="custom">Custom</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field__label">Custom label (optional)</span>
+                    <input name="customLabel" placeholder="e.g. same idea, different angle" />
+                  </label>
+                </div>
+                <label class="field">
+                  <span class="field__label">Why are they connected?</span>
+                  <textarea name="note" rows="3" placeholder="Describe the link between the two books…"></textarea>
+                </label>
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Save connection</button>
+                  <button class="btn" type="reset">Clear</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card__title">All connections</div>
+              <div class="toolbar">
+                <input id="conn-search" class="input" placeholder="Search titles, notes…" />
+              </div>
+              <div id="conn-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="assistant" aria-label="Assistant journal">
+          <div class="panel__header">
+            <h2>Assistant</h2>
+            <p class="muted">
+              Type naturally. It will try to detect workouts, books, quotes, or word lookups and save them automatically.
+            </p>
+          </div>
+
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">Journal</div>
+              <div id="ai-suggestions" class="suggestions">
+                <button class="btn" type="button" data-suggest="What does ephemeral mean?">What does ephemeral mean?</button>
+                <button class="btn" type="button" data-suggest="&quot;Not all who wander are lost&quot; — Tolkien">"Not all who wander are lost" — Tolkien</button>
+                <button class="btn" type="button" data-suggest="I'm reading Atomic Habits by James Clear">I'm reading Atomic Habits by James Clear</button>
+                <button class="btn" type="button" data-suggest="Ran 6km in 35 min today">Ran 6km in 35 min today</button>
+              </div>
+              <div class="divider"></div>
+              <div id="ai-chat" class="chat"></div>
+              <form id="ai-form" class="form" style="margin-top:12px">
+                <label class="field">
+                  <span class="field__label">Message</span>
+                  <textarea id="ai-input" name="text" rows="2" placeholder="Ask anything, paste a quote, log a workout, type a word…"></textarea>
+                </label>
+                <div class="form__actions">
+                  <button class="btn primary" type="submit">Send</button>
+                  <button id="ai-clear" class="btn" type="button">Clear chat</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <div class="card__title">Word vault</div>
+              <div class="toolbar">
+                <input id="word-search" class="input" placeholder="Search saved words…" />
+              </div>
+              <div id="word-list" class="list"></div>
+              <div class="divider"></div>
+              <div class="card__title">Last extraction</div>
+              <div id="ai-last" class="muted">Nothing yet. Send a message.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="insights" aria-label="Insights">
+          <div class="panel__header">
+            <h2>Insights</h2>
+            <p class="muted">A quick snapshot of your consistency and your reading graph.</p>
+          </div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">This week</div>
+              <div id="insights-week" class="kpi-grid"></div>
+            </div>
+            <div class="card">
+              <div class="card__title">Reading graph</div>
+              <div id="insights-graph" class="graph"></div>
+              <div class="hint muted">Tip: Add at least 2 books and create a connection.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" data-panel="settings" aria-label="Settings">
+          <div class="panel__header">
+            <h2>Settings</h2>
+            <p class="muted">Export/import your data, or reset everything.</p>
+          </div>
+          <div class="grid two">
+            <div class="card">
+              <div class="card__title">Backup</div>
+              <div class="form">
+                <button id="export-btn" class="btn primary" type="button">Export JSON</button>
+                <label class="field">
+                  <span class="field__label">Import JSON</span>
+                  <input id="import-input" type="file" accept="application/json" />
+                </label>
+              </div>
+            </div>
+            <div class="card danger">
+              <div class="card__title">Reset</div>
+              <p class="muted">This permanently deletes all saved data on this browser.</p>
+              <button id="reset-btn" class="btn danger" type="button">Delete all data</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer muted">
+        Data stays on your device (localStorage). No account needed.
+      </footer>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="./src/main.js" type="module"></script>
+  </body>
+</html>
