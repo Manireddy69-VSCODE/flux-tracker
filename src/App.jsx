@@ -1,18 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── Storage ────────────────────────────────────────────────────────────────
-const SK = "hobby-ai-v2";
+// ─── Backend API ────────────────────────────────────────────────────────────
+const API_URL = import.meta.env.VITE_API_BASE || "http://localhost:8000/api";
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
 
 async function load() {
   try {
-    const raw = localStorage.getItem(SK);
-    return raw ? JSON.parse(raw) : blank;
+    const [messages, words, quotes, books, workouts] = await Promise.all([
+      fetch(`${API_URL}/chat/messages`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/words`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/library/quotes`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/library/books`).then(r => r.json()).catch(() => []),
+      fetch(`${API_URL}/workouts`).then(r => r.json()).catch(() => []),
+    ]);
+    return { messages, words, quotes, books, workouts };
   }
   catch { return blank; }
-}
-async function save(d) {
-  try { localStorage.setItem(SK, JSON.stringify(d)); } catch {}
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -23,30 +26,22 @@ const todayStr = () => new Date().toLocaleDateString("en-US", { weekday:"short",
 const WORKOUT_TYPES = ["gym","run","walk","cycle","swim","yoga","hiit","climb","boxing","other"];
 const WORKOUT_EMOJI = { gym:"🏋️",run:"🏃",walk:"🚶",cycle:"🚴",swim:"🏊",yoga:"🧘",hiit:"⚡",climb:"🧗",boxing:"🥊",other:"💪" };
 
-// ─── AI Call ────────────────────────────────────────────────────────────────
-async function callAI(systemPrompt, userMsg) {
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
-  if (!apiKey || apiKey === "PASTE_YOUR_REAL_KEY_HERE" || apiKey === "sk-ant-your-key-here") {
-    return JSON.stringify(mockAiResponse(userMsg));
+// ─── Backend AI Integration ─────────────────────────────────────────────────
+async function callBackendAI(userMsg) {
+  try {
+    const res = await fetch(`${API_URL}/chat/process`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: userMsg }),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error("Backend error:", e);
+    // Fallback to mock response
+    const mock = mockAiResponse(userMsg);
+    return { ...mock, id: Math.random().toString(36).slice(2, 9), card_data: mock.data || {} };
   }
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-calls": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMsg }],
-    }),
-  });
-  const data = await res.json();
-  return data.content?.map(b => b.text || "").join("") || "";
 }
 
 function mockAiResponse(userMsg) {
@@ -118,6 +113,138 @@ function mockAiResponse(userMsg) {
   };
 }
 
+// ─── Theme Colors ───────────────────────────────────────────────────────────
+const getThemeColors = (theme) => {
+  if (theme === "light") {
+    return {
+      bg0: "#ffffff",
+      bg1: "#f5f5f5",
+      bg2: "#e8e8e8",
+      text0: "#1a1a1a",
+      text1: "#333333",
+      text2: "#666666",
+      accent: "#e8ff47",
+      border: "#d0d0d0",
+      border2: "#e0e0e0",
+      card: "#fafafa",
+      bubble_user: "#e8e8e8",
+      bubble_ai: "#f5f5f5",
+      bubble_ai_border: "#d0d0d0",
+    };
+  }
+  // Dark theme (default)
+  return {
+    bg0: "#080808",
+    bg1: "#0a0a0a",
+    bg2: "#0e0e0e",
+    text0: "#f0f0f0",
+    text1: "#d0d0d0",
+    text2: "#888888",
+    accent: "#e8ff47",
+    border: "#111111",
+    border2: "#1a1a1a",
+    card: "#0a0a0a",
+    bubble_user: "#111111",
+    bubble_ai: "#0e0e0e",
+    bubble_ai_border: "#141414",
+  };
+};
+
+// ─── Apply theme styles
+const getS = (theme) => {
+  const c = getThemeColors(theme);
+  return {
+    root: { display:"flex", height:"100vh", background:c.bg0, color:c.text0, fontFamily:"'Syne',sans-serif", overflow:"hidden" },
+    splash: { display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:c.bg0 },
+    splashDot: { width:8, height:8, borderRadius:"50%", background:c.accent },
+
+    // Aside
+    aside: { width:210, background:c.bg1, borderRight:`1px solid ${c.border}`, display:"flex", flexDirection:"column", padding:"24px 16px", flexShrink:0 },
+    logo: { display:"flex", alignItems:"center", gap:8, marginBottom:32 },
+    logoMark: { color:c.accent, fontSize:18, fontWeight:800 },
+    logoText: { color:c.text0, fontSize:18, fontWeight:800, letterSpacing:4 },
+    asideSection: { marginBottom:28 },
+    asideSectionLabel: { color:theme==="light"?"#aaa":"#2a2a2a", fontSize:9, fontFamily:"'DM Mono',monospace", letterSpacing:3, textTransform:"uppercase", marginBottom:10 },
+    navItem: { display:"flex", alignItems:"center", gap:10, padding:"8px 10px", borderRadius:8, border:"none", background:"transparent", color:theme==="light"?"#666":"#444", cursor:"pointer", width:"100%", textAlign:"left", transition:"all .15s" },
+    navActive: { background:c.bg2, color:c.text0 },
+    navIcon: { fontSize:14, width:16, textAlign:"center", flexShrink:0 },
+    navLabel: { flex:1, fontSize:13, fontFamily:"'Syne',sans-serif", fontWeight:600 },
+    navCount: { fontSize:10, fontFamily:"'DM Mono',monospace", background:c.bg2, color:c.text2, borderRadius:10, padding:"1px 6px", fontWeight:600 },
+    tip: { display:"flex", gap:8, alignItems:"center", padding:"5px 0", color:theme==="light"?"#999":"#2a2a2a", fontSize:11, fontFamily:"'DM Mono',monospace" },
+    asideMeta: { marginTop:"auto", paddingTop:16, borderTop:`1px solid ${c.border}` },
+
+    // Main
+    main: { flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", background:c.bg0 },
+    chatArea: { flex:1, overflowY:"auto", padding:"28px 32px 8px", display:"flex", flexDirection:"column", gap:20, background:c.bg0 },
+
+    // Empty / suggestions
+    empty: { margin:"auto", textAlign:"center", maxWidth:440, padding:"40px 20px" },
+    emptyTitle: { color:c.text0, fontFamily:"'DM Serif Display',serif", fontSize:26, lineHeight:1.3, marginBottom:12 },
+    emptySub: { color:c.text2, fontSize:13, fontFamily:"'DM Mono',monospace", lineHeight:1.7, marginBottom:28 },
+    suggestions: { display:"flex", flexDirection:"column", gap:8, alignItems:"center" },
+    suggBtn: { background:c.bg2, border:`1px solid ${c.border2}`, borderRadius:8, color:c.text2, cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:12, padding:"9px 16px", transition:"all .15s", textAlign:"left", width:"100%" },
+
+    // Input
+    inputWrap: { display:"flex", gap:10, padding:"16px 32px", borderTop:`1px solid ${c.border}`, background:c.bg0, alignItems:"flex-end", transition:"box-shadow .3s" },
+    inputPulse: { animation:"ripple .6s ease-out" },
+    inputBox: { flex:1, background:c.bg2, border:`1px solid ${c.border2}`, borderRadius:12, color:c.text0, fontFamily:"'DM Mono',monospace", fontSize:13, padding:"13px 16px", lineHeight:1.5, minHeight:48, transition:"border-color .2s" },
+    sendBtn: { width:44, height:44, borderRadius:10, background:c.accent, border:"none", color:theme==="light"?"#1a1a1a":"#0a0a0a", cursor:"pointer", fontSize:18, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"opacity .2s" },
+    inputHint: { textAlign:"center", color:theme==="light"?"#ccc":"#1e1e1e", fontSize:10, fontFamily:"'DM Mono',monospace", paddingBottom:12, marginTop:-10 },
+
+    // Bubbles
+    userBubbleWrap: { display:"flex", flexDirection:"column", alignItems:"flex-end", animation:"fadeUp .2s ease" },
+    userBubble: { background:c.bubble_user, borderRadius:"16px 16px 4px 16px", color:c.text0, fontFamily:"'Syne',sans-serif", fontSize:14, fontWeight:500, lineHeight:1.6, maxWidth:480, padding:"12px 16px" },
+    aiBubbleWrap: { display:"flex", gap:12, alignItems:"flex-start", animation:"fadeUp .25s ease" },
+    aiAvatar: { width:28, height:28, borderRadius:8, background:c.bg2, display:"flex", alignItems:"center", justifyContent:"center", color:c.accent, fontSize:12, flexShrink:0, marginTop:4 },
+    aiBubble: { background:c.bubble_ai, border:`1px solid ${c.bubble_ai_border}`, borderRadius:"4px 16px 16px 16px", color:c.text2, fontFamily:"'Syne',sans-serif", fontSize:14, lineHeight:1.7, padding:"12px 16px" },
+    bubbleTime: { color:theme==="light"?"#bbb":"#222", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:5, paddingLeft:4 },
+    dots: { display:"flex", gap:5, "& span":{ width:5, height:5, borderRadius:"50%", background:c.text2, display:"inline-block", animation:"blink 1.2s infinite" } },
+
+    // Inline cards
+    inlineCard: { background:c.bg2, border:`1px solid ${c.border2}`, borderRadius:12, padding:"14px 16px", marginTop:10 },
+    wordBig: { color:c.text0, fontFamily:"'DM Serif Display',serif", fontSize:22 },
+    posTag: { color:c.accent, fontSize:10, fontFamily:"'DM Mono',monospace", background:theme==="light"?"#ffd700":"#e8ff4711", padding:"2px 7px", borderRadius:20, textTransform:"uppercase", letterSpacing:1 },
+    defText: { color:c.text2, fontSize:13, fontFamily:"'Syne',sans-serif", lineHeight:1.7, marginTop:4 },
+    exText: { color:c.text2, fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic", marginTop:8, borderLeft:`2px solid ${c.border2}`, paddingLeft:10 },
+    quoteCardText: { color:c.text1, fontFamily:"'DM Serif Display',serif", fontStyle:"italic", fontSize:16, lineHeight:1.8 },
+    savedTag: { color:theme==="light"?"#2a4a2a":"#2a4a2a", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:10, letterSpacing:1 },
+    workoutChip: { background:theme==="light"?"#fff8e1":"#1a1200", color:c.accent, fontSize:11, fontFamily:"'DM Mono',monospace", padding:"2px 8px", borderRadius:6, fontWeight:600 },
+
+    // Panel
+    panelWrap: { flex:1, overflowY:"auto", padding:"32px 36px", background:c.bg0 },
+    panelSub: { color:theme==="light"?"#999":"#333", fontSize:10, fontFamily:"'DM Mono',monospace", letterSpacing:3, textTransform:"uppercase", marginBottom:14 },
+
+    // Words
+    wordGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:12 },
+    wordCard: { background:c.bg2, border:`1px solid ${c.border}`, borderRadius:14, padding:"18px 16px" },
+    wordCardWord: { color:c.text0, fontFamily:"'DM Serif Display',serif", fontSize:20, marginBottom:3 },
+    wordCardPos: { color:c.accent, fontSize:10, fontFamily:"'DM Mono',monospace", background:theme==="light"?"#ffd700":"#e8ff4711", padding:"2px 7px", borderRadius:20, textTransform:"uppercase", letterSpacing:1, display:"inline-block", marginBottom:10 },
+    wordCardDef: { color:c.text2, fontSize:13, fontFamily:"'Syne',sans-serif", lineHeight:1.7 },
+    wordCardEx: { color:theme==="light"?"#888":"#333", fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic", marginTop:10, borderLeft:`2px solid ${c.border}`, paddingLeft:10 },
+
+    // Books
+    bookGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:10 },
+    bookCard: { background:c.bg2, border:`1px solid ${c.border}`, borderRadius:12, padding:16 },
+    statusDot: { width:7, height:7, borderRadius:"50%", flexShrink:0, marginTop:3 },
+    bookGenre: { color:theme==="light"?"#888":"#333", fontSize:10, fontFamily:"'DM Mono',monospace" },
+    bookTitle: { color:c.text0, fontFamily:"'DM Serif Display',serif", fontSize:16, lineHeight:1.3, marginBottom:4 },
+    bookAuthor: { color:c.text2, fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic" },
+    bookStatus: { fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:6, textTransform:"uppercase", letterSpacing:1 },
+    bookQuoteCount: { color:theme==="light"?"#999":"#2a2a2a", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:6 },
+
+    // Quotes
+    quoteCard: { background:c.bg2, border:`1px solid ${c.border}`, borderLeft:`3px solid ${c.accent}33`, borderRadius:"0 12px 12px 0", padding:"16px 18px" },
+    quoteText: { color:c.text1, fontFamily:"'DM Serif Display',serif", fontStyle:"italic", fontSize:15, lineHeight:1.8 },
+    quoteMeta: { color:c.text2, fontSize:11, fontFamily:"'DM Mono',monospace", marginTop:10 },
+
+    // Workouts
+    workoutRow: { display:"flex", gap:14, alignItems:"center", background:c.bg2, border:`1px solid ${c.border}`, borderRadius:12, padding:"12px 16px" },
+    workoutType: { color:c.text0, fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15 },
+    workoutDate: { color:theme==="light"?"#999":"#333", fontSize:11, fontFamily:"'DM Mono',monospace" },
+    workoutNotes: { color:c.text2, fontSize:12, fontFamily:"'DM Mono',monospace", marginTop:3 },
+  };
+};
+
 // ─── Main App ────────────────────────────────────────────────────────────────
 export default function App() {
   const [db, setDb]           = useState(null);
@@ -125,14 +252,36 @@ export default function App() {
   const [thinking, setThinking] = useState(false);
   const [view, setView]       = useState("chat");   // chat | library | workouts | words
   const [pulse, setPulse]     = useState(false);
+  const [theme, setTheme]     = useState(() => localStorage.getItem("flux-theme") || "dark");
   const bottomRef             = useRef(null);
   const inputRef              = useRef(null);
 
+  const [lastExport, setLastExport] = useState(null);
+
   useEffect(() => { load().then(setDb); }, []);
-  useEffect(() => { if (db) save(db); }, [db]);
+  useEffect(() => { localStorage.setItem("flux-theme", theme); }, [theme]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [db?.messages]);
 
+  // Generate styles based on current theme
+  const S = getS(theme);
+
   const mutate = (fn) => setDb(prev => { const next = { ...prev }; fn(next); return next; });
+
+  // ─── Manual export function ───────────────────────────────────────────────
+  const exportData = () => {
+    if (!db) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+    const filename = `flux-backup-${timestamp}.json`;
+    const dataStr = JSON.stringify(db, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    setLastExport(new Date());
+  };
 
   // ─── Core: process any input ──────────────────────────────────────────────
   const process = useCallback(async (raw) => {
@@ -143,69 +292,71 @@ export default function App() {
     setPulse(true);
     setTimeout(() => setPulse(false), 600);
 
-    // Push user message
-    mutate(d => d.messages.push({ id: uid(), role: "user", text, time: ts() }));
-
     try {
-      const systemPrompt = `You are a personal hobby assistant. Analyze the user's input and:
-1. DETECT its intent from these types:
-   - WORD_LOOKUP: user wants the meaning/definition of a word (e.g. "what does ephemeral mean", "ephemeral", "define serendipity")
-   - QUOTE: user is sharing a quote from a book (contains quotation marks or "said by" or author name, or "from [book]")
-   - BOOK: user mentions a book title they read/are reading/want to read (e.g. "I'm reading Atomic Habits", "just finished 1984")
-   - WORKOUT: user logged exercise (e.g. "ran 5km", "gym 1 hour", "walked today", "30 min yoga")
-   - QUESTION: general question about stored data or anything else
-   - CHAT: casual message
-
-2. Respond in JSON only (no markdown, no backticks):
-{
-  "intent": "WORD_LOOKUP|QUOTE|BOOK|WORKOUT|QUESTION|CHAT",
-  "reply": "your warm conversational reply to show in chat (1-3 sentences)",
-  "data": {
-    // For WORD_LOOKUP: { "word": "word", "definition": "clear definition", "example": "example sentence", "partOfSpeech": "noun/verb/etc" }
-    // For QUOTE: { "text": "quote text", "book": "book title if mentioned", "author": "author if mentioned" }
-    // For BOOK: { "title": "book title", "author": "author if known", "status": "reading|finished|want", "genre": "genre if obvious" }
-    // For WORKOUT: { "type": "gym|run|walk|cycle|swim|yoga|hiit|climb|boxing|other", "duration": number_or_null, "distance": number_or_null, "notes": "any detail" }
-    // For QUESTION or CHAT: {}
-  }
-}`;
-
-      const raw_res = await callAI(systemPrompt, text);
-      let parsed;
-      try {
-        const clean = raw_res.replace(/```json|```/g, "").trim();
-        parsed = JSON.parse(clean);
-      } catch {
-        parsed = { intent: "CHAT", reply: raw_res, data: {} };
-      }
-
-      const { intent, reply, data } = parsed;
-      const id = uid();
-
-      // Store structured data
+      // Call backend API
+      const aiResponse = await callBackendAI(text);
+      
+      // Update state with messages (backend already saved them)
       mutate(d => {
-        if (intent === "WORD_LOOKUP" && data.word) {
-          d.words = d.words.filter(w => w.word.toLowerCase() !== data.word.toLowerCase());
-          d.words.unshift({ id, word: data.word, definition: data.definition, example: data.example, partOfSpeech: data.partOfSpeech, savedAt: new Date().toISOString() });
+        d.messages.push({ id: uid(), role: "user", text, time: ts() });
+        d.messages.push({
+          id: aiResponse.id,
+          role: aiResponse.role || "assistant",
+          text: aiResponse.text,
+          intent: aiResponse.intent,
+          cardData: aiResponse.card_data || {},
+          time: aiResponse.time
+        });
+
+        // Update other data if backend returned structured data
+        const data = aiResponse.card_data || {};
+        
+        if (aiResponse.intent === "WORD" && data.word) {
+          d.words = d.words.filter(w => w.word?.toLowerCase() !== data.word?.toLowerCase());
+          d.words.unshift({ 
+            id: aiResponse.id, 
+            word: data.word, 
+            definition: data.definition, 
+            example: data.example, 
+            partOfSpeech: data.part_of_speech 
+          });
         }
-        if (intent === "QUOTE" && data.text) {
-          d.quotes.unshift({ id, text: data.text, book: data.book || null, author: data.author || null, savedAt: new Date().toISOString() });
-          // Auto-link book
-          if (data.book && !d.books.find(b => b.title.toLowerCase() === data.book.toLowerCase())) {
-            d.books.unshift({ id: uid(), title: data.book, author: data.author || null, status: "unknown", genre: null, addedAt: new Date().toISOString() });
+        if (aiResponse.intent === "QUOTE" && data.text) {
+          d.quotes.unshift({ 
+            id: aiResponse.id, 
+            text: data.text, 
+            author: data.author, 
+            source: data.source 
+          });
+        }
+        if (aiResponse.intent === "BOOK" && data.title) {
+          const existing = d.books.find(b => b.title?.toLowerCase() === data.title?.toLowerCase());
+          if (!existing) {
+            d.books.unshift({ 
+              id: aiResponse.id, 
+              title: data.title, 
+              author: data.author, 
+              status: data.status || "want", 
+              genre: data.genre 
+            });
+          } else {
+            existing.status = data.status || existing.status;
+            existing.author = data.author || existing.author;
           }
         }
-        if (intent === "BOOK" && data.title) {
-          const existing = d.books.find(b => b.title.toLowerCase() === data.title.toLowerCase());
-          if (!existing) d.books.unshift({ id, title: data.title, author: data.author || null, status: data.status || "unknown", genre: data.genre || null, addedAt: new Date().toISOString() });
-          else { existing.status = data.status || existing.status; existing.author = data.author || existing.author; }
+        if (aiResponse.intent === "WORKOUT" && data.type) {
+          d.workouts.unshift({ 
+            id: aiResponse.id, 
+            type: data.type, 
+            duration: data.duration, 
+            distance: data.distance, 
+            notes: data.notes, 
+            date: todayStr(), 
+            saved_at: new Date().toISOString() 
+          });
         }
-        if (intent === "WORKOUT" && data.type) {
-          d.workouts.unshift({ id, type: data.type, duration: data.duration, distance: data.distance, notes: data.notes, date: todayStr(), savedAt: new Date().toISOString() });
-        }
-        d.messages.push({ id: uid(), role: "assistant", text: reply, intent, cardData: data, time: ts() });
       });
-
-    } catch (e) {
+    } catch {
       mutate(d => d.messages.push({ id: uid(), role: "assistant", text: "Something went wrong. Try again!", intent: "ERROR", cardData: {}, time: ts() }));
     }
     setThinking(false);
@@ -278,10 +429,24 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        <div style={{ padding:"12px 16px", borderTop:"1px solid #ddd", display:"flex", flexDirection:"column", gap:8 }}>
+          <button onClick={exportData} style={{ padding:"8px 12px", background:"#e8ff47", color:"#0a0a0a", border:"none", borderRadius:4, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"'Syne',sans-serif" }}>
+            💾 Export Backup
+          </button>
+          {lastExport && <div style={{ color:"#666", fontSize:9, fontFamily:"'DM Mono',monospace", textAlign:"center" }}>Last: {lastExport.toLocaleTimeString()}</div>}
+        </div>
       </aside>
 
       {/* ── MAIN ── */}
       <main style={S.main}>
+        
+        {/* HEADER WITH THEME TOGGLE */}
+        <div style={{ padding:"12px 20px", borderBottom:"1px solid " + (theme==="dark"?"#111":"#e0e0e0"), display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={() => setTheme(theme==="dark"?"light":"dark")} style={{ background:"transparent", border:"1px solid " + (theme==="dark"?"#333":"#ddd"), borderRadius:6, padding:"6px 12px", color:theme==="dark"?"#e8ff47":"#333", cursor:"pointer", fontFamily:"'Syne',sans-serif", fontSize:12, fontWeight:600, transition:"all .2s" }}>
+            {theme==="dark" ? "☀️ Light" : "🌙 Dark"}
+          </button>
+        </div>
 
         {/* CHAT VIEW */}
         {view === "chat" && (
@@ -299,9 +464,9 @@ export default function App() {
                 </div>
               )}
               {db.messages.map((msg, i) => (
-                <MessageBubble key={msg.id} msg={msg} prev={db.messages[i-1]} />
+                <MessageBubble key={msg.id} msg={msg} prev={db.messages[i-1]} S={S} />
               ))}
-              {thinking && <ThinkingBubble />}
+              {thinking && <ThinkingBubble S={S} />}
               <div ref={bottomRef} />
             </div>
 
@@ -429,7 +594,7 @@ export default function App() {
 }
 
 // ─── Message Bubble ──────────────────────────────────────────────────────────
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, S }) {
   const isUser = msg.role === "user";
   if (isUser) return (
     <div style={S.userBubbleWrap}>
@@ -444,17 +609,17 @@ function MessageBubble({ msg }) {
       <div style={{ flex:1, maxWidth:560 }}>
         <div style={S.aiBubble}>{msg.text}</div>
         {/* Inline card based on intent */}
-        {msg.intent === "WORD_LOOKUP" && msg.cardData?.word && <WordInlineCard d={msg.cardData} />}
-        {msg.intent === "QUOTE"       && msg.cardData?.text  && <QuoteInlineCard d={msg.cardData} />}
-        {msg.intent === "BOOK"        && msg.cardData?.title && <BookInlineCard d={msg.cardData} />}
-        {msg.intent === "WORKOUT"     && msg.cardData?.type  && <WorkoutInlineCard d={msg.cardData} />}
+        {msg.intent === "WORD_LOOKUP" && msg.cardData?.word && <WordInlineCard d={msg.cardData} S={S} />}
+        {msg.intent === "QUOTE"       && msg.cardData?.text  && <QuoteInlineCard d={msg.cardData} S={S} />}
+        {msg.intent === "BOOK"        && msg.cardData?.title && <BookInlineCard d={msg.cardData} S={S} />}
+        {msg.intent === "WORKOUT"     && msg.cardData?.type  && <WorkoutInlineCard d={msg.cardData} S={S} />}
         <div style={S.bubbleTime}>{msg.time}</div>
       </div>
     </div>
   );
 }
 
-function ThinkingBubble() {
+function ThinkingBubble({ S }) {
   return (
     <div style={S.aiBubbleWrap}>
       <div style={S.aiAvatar}>◈</div>
@@ -466,7 +631,7 @@ function ThinkingBubble() {
 }
 
 // ─── Inline Cards ─────────────────────────────────────────────────────────────
-function WordInlineCard({ d }) {
+function WordInlineCard({ d, S }) {
   return (
     <div style={S.inlineCard}>
       <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:4 }}>
@@ -479,7 +644,7 @@ function WordInlineCard({ d }) {
   );
 }
 
-function QuoteInlineCard({ d }) {
+function QuoteInlineCard({ d, S }) {
   return (
     <div style={{ ...S.inlineCard, borderColor:"#e8ff4733" }}>
       <div style={S.quoteCardText}>"{d.text}"</div>
@@ -493,7 +658,7 @@ function QuoteInlineCard({ d }) {
   );
 }
 
-function BookInlineCard({ d }) {
+function BookInlineCard({ d, S }) {
   const statusColor = {reading:"#e8ff47",finished:"#4ade80",want:"#60a5fa"}[d.status]||"#888";
   return (
     <div style={{ ...S.inlineCard, borderColor: statusColor + "33" }}>
@@ -507,7 +672,7 @@ function BookInlineCard({ d }) {
   );
 }
 
-function WorkoutInlineCard({ d }) {
+function WorkoutInlineCard({ d, S }) {
   return (
     <div style={{ ...S.inlineCard, borderColor:"#4ade8033" }}>
       <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -587,93 +752,4 @@ const CSS = `
   @keyframes ripple { 0%{box-shadow:0 0 0 0 rgba(232,255,71,.15)} 100%{box-shadow:0 0 0 16px rgba(232,255,71,0)} }
 `;
 
-const S = {
-  root: { display:"flex", height:"100vh", background:"#080808", color:"#d0d0d0", fontFamily:"'Syne',sans-serif", overflow:"hidden" },
-  splash: { display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"#080808" },
-  splashDot: { width:8, height:8, borderRadius:"50%", background:"#e8ff47" },
 
-  // Aside
-  aside: { width:210, background:"#0a0a0a", borderRight:"1px solid #111", display:"flex", flexDirection:"column", padding:"24px 16px", flexShrink:0 },
-  logo: { display:"flex", alignItems:"center", gap:8, marginBottom:32 },
-  logoMark: { color:"#e8ff47", fontSize:18, fontWeight:800 },
-  logoText: { color:"#f0f0f0", fontSize:18, fontWeight:800, letterSpacing:4 },
-  asideSection: { marginBottom:28 },
-  asideSectionLabel: { color:"#2a2a2a", fontSize:9, fontFamily:"'DM Mono',monospace", letterSpacing:3, textTransform:"uppercase", marginBottom:10 },
-  navItem: { display:"flex", alignItems:"center", gap:10, padding:"8px 10px", borderRadius:8, border:"none", background:"transparent", color:"#444", cursor:"pointer", width:"100%", textAlign:"left", transition:"all .15s" },
-  navActive: { background:"#111", color:"#f0f0f0" },
-  navIcon: { fontSize:14, width:16, textAlign:"center", flexShrink:0 },
-  navLabel: { flex:1, fontSize:13, fontFamily:"'Syne',sans-serif", fontWeight:600 },
-  navCount: { fontSize:10, fontFamily:"'DM Mono',monospace", background:"#1a1a1a", color:"#555", borderRadius:10, padding:"1px 6px", fontWeight:600 },
-  tip: { display:"flex", gap:8, alignItems:"center", padding:"5px 0", color:"#2a2a2a", fontSize:11, fontFamily:"'DM Mono',monospace" },
-  asideMeta: { marginTop:"auto", paddingTop:16, borderTop:"1px solid #111" },
-
-  // Main
-  main: { flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative" },
-  chatArea: { flex:1, overflowY:"auto", padding:"28px 32px 8px", display:"flex", flexDirection:"column", gap:20 },
-
-  // Empty / suggestions
-  empty: { margin:"auto", textAlign:"center", maxWidth:440, padding:"40px 20px" },
-  emptyTitle: { color:"#f0f0f0", fontFamily:"'DM Serif Display',serif", fontSize:26, lineHeight:1.3, marginBottom:12 },
-  emptySub: { color:"#444", fontSize:13, fontFamily:"'DM Mono',monospace", lineHeight:1.7, marginBottom:28 },
-  suggestions: { display:"flex", flexDirection:"column", gap:8, alignItems:"center" },
-  suggBtn: { background:"#0e0e0e", border:"1px solid #1a1a1a", borderRadius:8, color:"#555", cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:12, padding:"9px 16px", transition:"all .15s", textAlign:"left", width:"100%" },
-
-  // Input
-  inputWrap: { display:"flex", gap:10, padding:"16px 32px", borderTop:"1px solid #111", background:"#080808", alignItems:"flex-end", transition:"box-shadow .3s" },
-  inputPulse: { animation:"ripple .6s ease-out" },
-  inputBox: { flex:1, background:"#0e0e0e", border:"1px solid #1a1a1a", borderRadius:12, color:"#f0f0f0", fontFamily:"'DM Mono',monospace", fontSize:13, padding:"13px 16px", lineHeight:1.5, minHeight:48, transition:"border-color .2s" },
-  sendBtn: { width:44, height:44, borderRadius:10, background:"#e8ff47", border:"none", color:"#0a0a0a", cursor:"pointer", fontSize:18, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"opacity .2s" },
-  inputHint: { textAlign:"center", color:"#1e1e1e", fontSize:10, fontFamily:"'DM Mono',monospace", paddingBottom:12, marginTop:-10 },
-
-  // Bubbles
-  userBubbleWrap: { display:"flex", flexDirection:"column", alignItems:"flex-end", animation:"fadeUp .2s ease" },
-  userBubble: { background:"#111", borderRadius:"16px 16px 4px 16px", color:"#f0f0f0", fontFamily:"'Syne',sans-serif", fontSize:14, fontWeight:500, lineHeight:1.6, maxWidth:480, padding:"12px 16px" },
-  aiBubbleWrap: { display:"flex", gap:12, alignItems:"flex-start", animation:"fadeUp .25s ease" },
-  aiAvatar: { width:28, height:28, borderRadius:8, background:"#111", display:"flex", alignItems:"center", justifyContent:"center", color:"#e8ff47", fontSize:12, flexShrink:0, marginTop:4 },
-  aiBubble: { background:"#0e0e0e", border:"1px solid #141414", borderRadius:"4px 16px 16px 16px", color:"#b0b0b0", fontFamily:"'Syne',sans-serif", fontSize:14, lineHeight:1.7, padding:"12px 16px" },
-  bubbleTime: { color:"#222", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:5, paddingLeft:4 },
-  dots: { display:"flex", gap:5, "& span":{ width:5, height:5, borderRadius:"50%", background:"#333", display:"inline-block", animation:"blink 1.2s infinite" } },
-
-  // Inline cards
-  inlineCard: { background:"#0a0a0a", border:"1px solid #1a1a1a", borderRadius:12, padding:"14px 16px", marginTop:10 },
-  wordBig: { color:"#f0f0f0", fontFamily:"'DM Serif Display',serif", fontSize:22 },
-  posTag: { color:"#e8ff47", fontSize:10, fontFamily:"'DM Mono',monospace", background:"#e8ff4711", padding:"2px 7px", borderRadius:20, textTransform:"uppercase", letterSpacing:1 },
-  defText: { color:"#888", fontSize:13, fontFamily:"'Syne',sans-serif", lineHeight:1.7, marginTop:4 },
-  exText: { color:"#444", fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic", marginTop:8, borderLeft:"2px solid #1e1e1e", paddingLeft:10 },
-  quoteCardText: { color:"#c0c0c0", fontFamily:"'DM Serif Display',serif", fontStyle:"italic", fontSize:16, lineHeight:1.8 },
-  savedTag: { color:"#2a4a2a", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:10, letterSpacing:1 },
-  workoutChip: { background:"#1a1200", color:"#e8ff47", fontSize:11, fontFamily:"'DM Mono',monospace", padding:"2px 8px", borderRadius:6, fontWeight:600 },
-
-  // Panel
-  panelWrap: { flex:1, overflowY:"auto", padding:"32px 36px" },
-  panelSub: { color:"#333", fontSize:10, fontFamily:"'DM Mono',monospace", letterSpacing:3, textTransform:"uppercase", marginBottom:14 },
-
-  // Words
-  wordGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:12 },
-  wordCard: { background:"#0a0a0a", border:"1px solid #111", borderRadius:14, padding:"18px 16px" },
-  wordCardWord: { color:"#f0f0f0", fontFamily:"'DM Serif Display',serif", fontSize:20, marginBottom:3 },
-  wordCardPos: { color:"#e8ff47", fontSize:10, fontFamily:"'DM Mono',monospace", background:"#e8ff4711", padding:"2px 7px", borderRadius:20, textTransform:"uppercase", letterSpacing:1, display:"inline-block", marginBottom:10 },
-  wordCardDef: { color:"#777", fontSize:13, fontFamily:"'Syne',sans-serif", lineHeight:1.7 },
-  wordCardEx: { color:"#333", fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic", marginTop:10, borderLeft:"2px solid #1a1a1a", paddingLeft:10 },
-
-  // Books
-  bookGrid: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:10 },
-  bookCard: { background:"#0a0a0a", border:"1px solid #111", borderRadius:12, padding:16 },
-  statusDot: { width:7, height:7, borderRadius:"50%", flexShrink:0, marginTop:3 },
-  bookGenre: { color:"#333", fontSize:10, fontFamily:"'DM Mono',monospace" },
-  bookTitle: { color:"#f0f0f0", fontFamily:"'DM Serif Display',serif", fontSize:16, lineHeight:1.3, marginBottom:4 },
-  bookAuthor: { color:"#555", fontSize:12, fontFamily:"'DM Mono',monospace", fontStyle:"italic" },
-  bookStatus: { fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:6, textTransform:"uppercase", letterSpacing:1 },
-  bookQuoteCount: { color:"#2a2a2a", fontSize:10, fontFamily:"'DM Mono',monospace", marginTop:6 },
-
-  // Quotes
-  quoteCard: { background:"#0a0a0a", border:"1px solid #111", borderLeft:"3px solid #e8ff4722", borderRadius:"0 12px 12px 0", padding:"16px 18px" },
-  quoteText: { color:"#b0b0b0", fontFamily:"'DM Serif Display',serif", fontStyle:"italic", fontSize:15, lineHeight:1.8 },
-  quoteMeta: { color:"#444", fontSize:11, fontFamily:"'DM Mono',monospace", marginTop:10 },
-
-  // Workouts
-  workoutRow: { display:"flex", gap:14, alignItems:"center", background:"#0a0a0a", border:"1px solid #111", borderRadius:12, padding:"12px 16px" },
-  workoutType: { color:"#f0f0f0", fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:15 },
-  workoutDate: { color:"#333", fontSize:11, fontFamily:"'DM Mono',monospace" },
-  workoutNotes: { color:"#444", fontSize:12, fontFamily:"'DM Mono',monospace", marginTop:3 },
-};
