@@ -27,3 +27,10 @@ dist-ssr
 *.sw?
 # Auto-generated backups
 data/backups/*.json
+
+# Local nested repos / temp scaffolds
+about-me/
+about-me-site/
+
+# Python cache
+backend/__pycache__/
