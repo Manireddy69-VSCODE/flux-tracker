@@ -4,17 +4,17 @@ Summary of work done today (short):
 
 - Implemented light/dark theme support in `src/App.jsx` and removed old static styles.
 - Added serverless backend support: created `api/index.py` (Mangum wrapper) and adjusted `backend` package imports.
-- Cleaned up `requirements.txt` and removed problematic packages for Netlify/Vercel compatibility.
-- Added `netlify.toml` and `netlify/functions/api.py` to run FastAPI as a Netlify function.
-- Removed problematic `vercel.json` and pushed fixes; attempted Vercel deploys and troubleshot runtime errors.
+- Cleaned up `requirements.txt` and removed problematic packages for static deployment compatibility.
+- Added static deployment workflow for Git-based hosting.
+- Removed old platform-specific deploy configs and cleaned the deployment flow.
 - Created backups and exported project snapshot; committed and pushed all changes to GitHub.
 
 Notes:
 - Backend data is persisted in `data/flux_data.json`.
-- Frontend is configured to call `/.netlify/functions/api` when deployed to Netlify.
+- Frontend now uses `/api` by default or `VITE_API_BASE` when configured.
 
 Next steps:
-- Verify Netlify deployment logs and add `ANTHROPIC_API_KEY` in Netlify env for real AI responses.
+- Verify GitHub Pages deployment and configure backend API endpoint with `VITE_API_BASE`.
 - Optionally create a separate portfolio repo and deploy it.
 
 -- End of contribution note

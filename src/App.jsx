@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Backend API ────────────────────────────────────────────────────────────
-const API_URL = import.meta.env.VITE_API_BASE || "/.netlify/functions/api";
+const API_URL = import.meta.env.VITE_API_BASE || "/api";
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
+const AUTH_KEY = "flux-auth-session";
 
 async function load() {
   try {
@@ -157,6 +158,20 @@ const getS = (theme) => {
     root: { display:"flex", height:"100vh", background:c.bg0, color:c.text0, fontFamily:"'Syne',sans-serif", overflow:"hidden" },
     splash: { display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:c.bg0 },
     splashDot: { width:8, height:8, borderRadius:"50%", background:c.accent },
+    loginShell: { minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", padding:"24px", background:c.bg0, color:c.text0, position:"relative" },
+    loginCard: { width:"100%", maxWidth:420, background:c.bg1, border:`1px solid ${c.border2}`, borderRadius:16, padding:"28px 24px", boxShadow: theme==="light" ? "0 10px 30px rgba(0,0,0,.08)" : "0 10px 30px rgba(0,0,0,.45)" },
+    loginBrand: { display:"flex", alignItems:"center", gap:8, marginBottom:20 },
+    loginTitle: { fontFamily:"'DM Serif Display',serif", fontSize:30, lineHeight:1.2, marginBottom:6 },
+    loginSub: { color:c.text2, fontFamily:"'DM Mono',monospace", fontSize:12, lineHeight:1.7, marginBottom:18 },
+    loginLabel: { color:c.text2, fontFamily:"'DM Mono',monospace", fontSize:11, textTransform:"uppercase", letterSpacing:1.4, marginBottom:6, display:"block" },
+    loginInput: { width:"100%", background:c.bg2, border:`1px solid ${c.border2}`, borderRadius:10, color:c.text0, fontFamily:"'DM Mono',monospace", fontSize:13, padding:"12px 13px", marginBottom:12 },
+    loginRow: { display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14, gap:10 },
+    loginRemember: { display:"flex", alignItems:"center", gap:8, color:c.text2, fontFamily:"'DM Mono',monospace", fontSize:11 },
+    loginHintLink: { color:c.accent, fontFamily:"'DM Mono',monospace", fontSize:11, textDecoration:"none" },
+    loginBtn: { width:"100%", background:c.accent, color:"#0a0a0a", border:"none", borderRadius:10, padding:"12px 14px", fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, cursor:"pointer" },
+    loginError: { marginTop:10, color:"#ef4444", fontFamily:"'DM Mono',monospace", fontSize:11 },
+    loginFooter: { marginTop:14, color:c.text2, fontFamily:"'DM Mono',monospace", fontSize:11, textAlign:"center" },
+    themeTopRight: { position:"absolute", top:20, right:20, background:"transparent", border:`1px solid ${theme==="dark" ? "#333" : "#ddd"}`, borderRadius:8, padding:"7px 12px", color:theme==="dark" ? c.accent : c.text1, cursor:"pointer", fontFamily:"'Syne',sans-serif", fontSize:12, fontWeight:600 },
 
     // Aside
     aside: { width:210, background:c.bg1, borderRight:`1px solid ${c.border}`, display:"flex", flexDirection:"column", padding:"24px 16px", flexShrink:0 },
@@ -248,6 +263,16 @@ const getS = (theme) => {
 // ─── Main App ────────────────────────────────────────────────────────────────
 export default function App() {
   const [db, setDb]           = useState(null);
+  const [auth, setAuth]       = useState(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loginForm, setLoginForm] = useState({ email: "", password: "", remember: true });
+  const [loginError, setLoginError] = useState("");
   const [input, setInput]     = useState("");
   const [thinking, setThinking] = useState(false);
   const [view, setView]       = useState("chat");   // chat | library | workouts | words
@@ -260,6 +285,10 @@ export default function App() {
 
   useEffect(() => { load().then(setDb); }, []);
   useEffect(() => { localStorage.setItem("flux-theme", theme); }, [theme]);
+  useEffect(() => {
+    if (auth) localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
+    else localStorage.removeItem(AUTH_KEY);
+  }, [auth]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [db?.messages]);
 
   // Generate styles based on current theme
@@ -367,6 +396,92 @@ export default function App() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); process(input); }
   };
 
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const email = loginForm.email.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      setLoginError("Enter a valid email address.");
+      return;
+    }
+    if (loginForm.password.length < 6) {
+      setLoginError("Password must be at least 6 characters.");
+      return;
+    }
+    setLoginError("");
+    setAuth({
+      email,
+      remember: loginForm.remember,
+      loggedAt: new Date().toISOString(),
+    });
+    if (!loginForm.remember) {
+      setLoginForm({ email: "", password: "", remember: false });
+    }
+  };
+
+  const handleLogout = () => {
+    setAuth(null);
+    setLoginForm({ email: "", password: "", remember: true });
+    setLoginError("");
+  };
+
+  if (!auth) return (
+    <div style={S.loginShell}>
+      <style>{CSS}</style>
+      <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+      <button onClick={() => setTheme(theme==="dark"?"light":"dark")} style={S.themeTopRight}>
+        {theme==="dark" ? "Light" : "Dark"}
+      </button>
+      <form style={S.loginCard} onSubmit={handleLogin}>
+        <div style={S.loginBrand}>
+          <span style={S.logoMark}>*</span>
+          <span style={S.logoText}>FLUX</span>
+        </div>
+        <h1 style={S.loginTitle}>Sign in</h1>
+        <p style={S.loginSub}>Use your email and password to access your dashboard.</p>
+
+        <label style={S.loginLabel} htmlFor="login-email">Email</label>
+        <input
+          id="login-email"
+          type="email"
+          style={S.loginInput}
+          placeholder="you@example.com"
+          value={loginForm.email}
+          onChange={(e) => setLoginForm((p) => ({ ...p, email: e.target.value }))}
+          autoComplete="email"
+        />
+
+        <label style={S.loginLabel} htmlFor="login-password">Password</label>
+        <input
+          id="login-password"
+          type="password"
+          style={S.loginInput}
+          placeholder="Enter your password"
+          value={loginForm.password}
+          onChange={(e) => setLoginForm((p) => ({ ...p, password: e.target.value }))}
+          autoComplete="current-password"
+        />
+
+        <div style={S.loginRow}>
+          <label style={S.loginRemember}>
+            <input
+              type="checkbox"
+              checked={loginForm.remember}
+              onChange={(e) => setLoginForm((p) => ({ ...p, remember: e.target.checked }))}
+            />
+            Remember me
+          </label>
+          <a href="#" style={S.loginHintLink} onClick={(e) => e.preventDefault()}>
+            Forgot password?
+          </a>
+        </div>
+
+        <button type="submit" style={S.loginBtn}>Sign In</button>
+        {loginError && <div style={S.loginError}>{loginError}</div>}
+        <div style={S.loginFooter}>Demo mode: any valid email and password (6+ chars).</div>
+      </form>
+    </div>
+  );
+
   if (!db) return (
     <div style={S.splash}>
       <div style={S.splashDot} />
@@ -443,6 +558,9 @@ export default function App() {
         
         {/* HEADER WITH THEME TOGGLE */}
         <div style={{ padding:"12px 20px", borderBottom:"1px solid " + (theme==="dark"?"#111":"#e0e0e0"), display:"flex", justifyContent:"flex-end" }}>
+          <button onClick={handleLogout} style={{ background:"transparent", border:"1px solid " + (theme==="dark"?"#333":"#ddd"), borderRadius:6, padding:"6px 12px", color:theme==="dark"?"#bbb":"#555", cursor:"pointer", fontFamily:"'DM Mono',monospace", fontSize:11, marginRight:8 }}>
+            Logout
+          </button>
           <button onClick={() => setTheme(theme==="dark"?"light":"dark")} style={{ background:"transparent", border:"1px solid " + (theme==="dark"?"#333":"#ddd"), borderRadius:6, padding:"6px 12px", color:theme==="dark"?"#e8ff47":"#333", cursor:"pointer", fontFamily:"'Syne',sans-serif", fontSize:12, fontWeight:600, transition:"all .2s" }}>
             {theme==="dark" ? "☀️ Light" : "🌙 Dark"}
           </button>
