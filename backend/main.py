@@ -2,12 +2,17 @@
 Main FastAPI application - FLUX AI Backend
 """
 from fastapi import FastAPI, HTTPException
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from dotenv import load_dotenv
 from backend import db
 import uuid
+import os
+import json
+from urllib import request as urllib_request
+from urllib.error import URLError, HTTPError
 from datetime import datetime
 from backend.ai_service import process_with_ai
 
@@ -42,6 +47,33 @@ def ts():
     return datetime.now().strftime("%H:%M")
 
 
+def forward_to_google_sheets(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Forward event payload to Google Apps Script webhook.
+    Set GOOGLE_SHEETS_WEBHOOK_URL in env to enable.
+    """
+    webhook_url = os.getenv("GOOGLE_SHEETS_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        return {"forwarded": False, "reason": "missing_webhook_url"}
+
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib_request.Request(
+        webhook_url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=8) as res:
+            status_code = getattr(res, "status", 200)
+            return {"forwarded": 200 <= status_code < 300, "status_code": status_code}
+    except HTTPError as e:
+        return {"forwarded": False, "status_code": e.code, "reason": "http_error"}
+    except URLError:
+        return {"forwarded": False, "reason": "url_error"}
+
+
 # ─── SCHEMAS ─────────────────────────────────────────────────────────────────
 class ProcessInput(BaseModel):
     text: str
@@ -73,6 +105,14 @@ class WorkoutCreate(BaseModel):
     distance: Optional[str] = None
     notes: Optional[str] = None
     date: str
+
+
+class AnalyticsEventCreate(BaseModel):
+    event: str
+    user_email: Optional[str] = None
+    session_id: Optional[str] = None
+    page: Optional[str] = None
+    meta: Optional[Dict[str, Any]] = None
 
 
 # ─── HEALTH CHECK ────────────────────────────────────────────────────────────
@@ -316,6 +356,52 @@ async def delete_workout(workout_id: str):
     data["workouts"] = [w for w in data["workouts"] if w["id"] != workout_id]
     db.update_data(data)
     return {"status": "deleted"}
+
+
+# â”€â”€â”€ ANALYTICS ENDPOINTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+@app.post("/api/analytics/event")
+async def track_event(event: AnalyticsEventCreate, request: Request):
+    """Track frontend events and optionally forward to Google Sheets."""
+    if not event.event.strip():
+        raise HTTPException(status_code=400, detail="Event name is required")
+
+    data = db.get_all_data()
+    data.setdefault("analytics_events", [])
+
+    event_row = {
+        "id": uid(),
+        "event": event.event.strip(),
+        "user_email": event.user_email,
+        "session_id": event.session_id,
+        "page": event.page,
+        "meta": event.meta or {},
+        "time": ts(),
+        "timestamp": datetime.now().isoformat(),
+        "user_agent": request.headers.get("user-agent"),
+        "ip": request.client.host if request.client else None,
+    }
+    data["analytics_events"].append(event_row)
+    db.update_data(data)
+
+    sheet_payload = {
+        "time": event_row["timestamp"],
+        "event": event_row["event"],
+        "user_email": event_row["user_email"] or "",
+        "session_id": event_row["session_id"] or "",
+        "page": event_row["page"] or "",
+        "meta": json.dumps(event_row["meta"], ensure_ascii=True),
+        "user_agent": event_row["user_agent"] or "",
+    }
+    forward_status = forward_to_google_sheets(sheet_payload)
+
+    return {"status": "ok", "saved": True, "sheets": forward_status}
+
+
+@app.get("/api/analytics/events")
+async def get_analytics_events():
+    """Get tracked analytics events."""
+    data = db.get_all_data()
+    return data.get("analytics_events", [])
 
 
 if __name__ == "__main__":

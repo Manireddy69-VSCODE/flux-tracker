@@ -2,11 +2,14 @@
 
 A modern AI-powered personal tracker for words, books, quotes, and workouts.
 
-## 🔗 Live Demo
+## Live Demo
 
-**Frontend**: https://manireddy69-vscode.github.io/flux-tracker/
+- **Frontend**: https://manireddy69-vscode.github.io/flux-tracker/
+- **Portfolio (About Me)**: https://manireddy69-vscode.github.io/about-me/
 
-## 🚀 Getting Started
+`about-me` auto-deploys via GitHub Actions, so that portfolio link updates automatically on each push to `main`.
+
+## Getting Started
 
 ```bash
 # Install dependencies
@@ -25,8 +28,17 @@ npm run dev
 
 ## Features
 
-- 📝 **Journal** - Chat with AI to log any data
-- α **Word Vault** - Define and save vocabulary
-- 📚 **Library** - Track books and quotes
-- 💪 **Workouts** - Log exercise sessions
+- Journal - Chat with AI to log any data
+- Word Vault - Define and save vocabulary
+- Library - Track books and quotes
+- Workouts - Log exercise sessions
 
+## Google Sheets Tracking
+
+You can track visitor and user events into your Google Sheet via backend webhook forwarding.
+
+1. Create a Google Apps Script Web App (`doPost`) that appends rows to your Sheet.
+2. Set `GOOGLE_SHEETS_WEBHOOK_URL` in your backend environment.
+3. Frontend now sends events to `POST /api/analytics/event`.
+
+Tracked events include: `page_view`, `login`, `view_change`, `message_sent`, `logout`.

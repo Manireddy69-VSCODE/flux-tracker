@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const API_URL = import.meta.env.VITE_API_BASE || "/api";
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
 const AUTH_KEY = "flux-auth-session";
+const SESSION_KEY = "flux-session-id";
 
 async function load() {
   try {
@@ -42,6 +43,18 @@ async function callBackendAI(userMsg) {
     // Fallback to mock response
     const mock = mockAiResponse(userMsg);
     return { ...mock, id: Math.random().toString(36).slice(2, 9), card_data: mock.data || {} };
+  }
+}
+
+async function trackEvent(event, payload = {}) {
+  try {
+    await fetch(`${API_URL}/analytics/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, ...payload }),
+    });
+  } catch {
+    // Analytics should never break app flow.
   }
 }
 
@@ -278,16 +291,35 @@ export default function App() {
   const [view, setView]       = useState("chat");   // chat | library | workouts | words
   const [pulse, setPulse]     = useState(false);
   const [theme, setTheme]     = useState(() => localStorage.getItem("flux-theme") || "dark");
+  const [sessionId, setSessionId] = useState(() => localStorage.getItem(SESSION_KEY) || uid());
   const bottomRef             = useRef(null);
   const inputRef              = useRef(null);
 
   useEffect(() => { load().then(setDb); }, []);
   useEffect(() => { localStorage.setItem("flux-theme", theme); }, [theme]);
+  useEffect(() => { localStorage.setItem(SESSION_KEY, sessionId); }, [sessionId]);
   useEffect(() => {
     if (auth) localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
     else localStorage.removeItem(AUTH_KEY);
   }, [auth]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [db?.messages]);
+  useEffect(() => {
+    if (!auth) return;
+    trackEvent("page_view", {
+      user_email: auth.email,
+      session_id: sessionId,
+      page: typeof window !== "undefined" ? window.location.pathname : "/",
+    });
+  }, [auth, sessionId]);
+  useEffect(() => {
+    if (!auth) return;
+    trackEvent("view_change", {
+      user_email: auth.email,
+      session_id: sessionId,
+      page: view,
+      meta: { theme },
+    });
+  }, [view, theme, auth, sessionId]);
 
   // Generate styles based on current theme
   const S = getS(theme);
@@ -298,6 +330,14 @@ export default function App() {
     const text = raw.trim();
     if (!text) return;
     setInput("");
+    if (auth) {
+      trackEvent("message_sent", {
+        user_email: auth.email,
+        session_id: sessionId,
+        page: view,
+        meta: { length: text.length },
+      });
+    }
     setThinking(true);
     setPulse(true);
     setTimeout(() => setPulse(false), 600);
@@ -371,7 +411,7 @@ export default function App() {
     }
     setThinking(false);
     inputRef.current?.focus();
-  }, []);
+  }, [auth, sessionId, view]);
 
   const handleKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); process(input); }
@@ -394,12 +434,26 @@ export default function App() {
       remember: loginForm.remember,
       loggedAt: new Date().toISOString(),
     });
+    trackEvent("login", {
+      user_email: email,
+      session_id: sessionId,
+      page: "login",
+      meta: { remember: loginForm.remember },
+    });
     if (!loginForm.remember) {
       setLoginForm({ email: "", password: "", remember: false });
     }
   };
 
   const handleLogout = () => {
+    if (auth) {
+      trackEvent("logout", {
+        user_email: auth.email,
+        session_id: sessionId,
+        page: view,
+      });
+    }
+    setSessionId(uid());
     setAuth(null);
     setLoginForm({ email: "", password: "", remember: true });
     setLoginError("");

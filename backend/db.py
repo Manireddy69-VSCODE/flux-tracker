@@ -17,7 +17,8 @@ def load_data() -> Dict[str, Any]:
     if os.path.exists(DB_PATH):
         try:
             with open(DB_PATH, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                return normalize_data(data)
         except:
             return get_blank_data()
     return get_blank_data()
@@ -39,8 +40,17 @@ def get_blank_data() -> Dict[str, Any]:
         "words": [],
         "quotes": [],
         "books": [],
-        "workouts": []
+        "workouts": [],
+        "analytics_events": []
     }
+
+
+def normalize_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensure all expected top-level collections exist."""
+    blank = get_blank_data()
+    for key in blank:
+        data.setdefault(key, blank[key] if isinstance(blank[key], list) else blank[key])
+    return data
 
 
 # Global data store (loaded at startup)
@@ -49,7 +59,7 @@ _data = load_data()
 
 def get_all_data() -> Dict[str, Any]:
     """Get all data"""
-    return _data
+    return normalize_data(_data)
 
 
 def update_data(new_data: Dict[str, Any]) -> None:
