@@ -4,7 +4,7 @@ A modern AI-powered personal tracker for words, books, quotes, and workouts.
 
 ## 🔗 Live Demo
 
-**Frontend**: https://flux-tracker.netlify.app
+**Frontend**: https://hobbies-tracker.netlify.app/
 
 ## 🚀 Getting Started
 

@@ -64,7 +64,7 @@ Update `about-me/src/App.jsx` to call `/api/chat/process` instead of the local m
 ## 🚀 Current Status
 
 ```
-Frontend ✅  (https://flux-tracker.netlify.app)
+Frontend ✅  (https://hobbies-tracker.netlify.app/)
 Backend  ✅  (FastAPI running on 8000)
 Database ✅  (JSON file at data/flux_data.json)
 AI       ⏳ (Configured, waiting for API key)
@@ -72,7 +72,7 @@ AI       ⏳ (Configured, waiting for API key)
 
 ## 🔗 Live Links
 
-- **Frontend**: https://flux-tracker.netlify.app
+- **Frontend**: https://hobbies-tracker.netlify.app/
 
 ## 📁 Project Structure
 
