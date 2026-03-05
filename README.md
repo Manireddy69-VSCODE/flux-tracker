@@ -35,10 +35,11 @@ npm run dev
 
 ## Google Sheets Tracking
 
-You can track visitor and user events into your Google Sheet via backend webhook forwarding.
+You can track visitor and user events into your Google Sheet.
 
 1. Create a Google Apps Script Web App (`doPost`) that appends rows to your Sheet.
-2. Set `GOOGLE_SHEETS_WEBHOOK_URL` in your backend environment.
-3. Frontend now sends events to `POST /api/analytics/event`.
+2. Set `VITE_GOOGLE_SHEETS_WEBHOOK_URL` in frontend env.
+3. Optional: set `GOOGLE_SHEETS_WEBHOOK_URL` in backend env if you also run backend forwarding.
+4. Frontend sends events to `POST /api/analytics/event` first, then falls back to direct Google Sheets webhook.
 
 Tracked events include: `page_view`, `login`, `view_change`, `message_sent`, `logout`.

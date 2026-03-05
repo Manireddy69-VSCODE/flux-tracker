@@ -2,6 +2,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Backend API ────────────────────────────────────────────────────────────
 const API_URL = import.meta.env.VITE_API_BASE || "/api";
+const SHEETS_WEBHOOK_URL =
+  import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL ||
+  "https://script.google.com/macros/s/AKfycbyS1BAL259pNrBhtANuSRonulCVttncA9S8EewU4E7UmcrTNO3-twprVbNNd3EQwiMIAw/exec";
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
 const AUTH_KEY = "flux-auth-session";
 const SESSION_KEY = "flux-session-id";
@@ -47,11 +50,29 @@ async function callBackendAI(userMsg) {
 }
 
 async function trackEvent(event, payload = {}) {
+  const eventPayload = {
+    event,
+    ...payload,
+    source: "frontend",
+    sentAt: new Date().toISOString(),
+  };
+
   try {
-    await fetch(`${API_URL}/analytics/event`, {
+    const res = await fetch(`${API_URL}/analytics/event`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, ...payload }),
+      body: JSON.stringify(eventPayload),
+      keepalive: true,
+    });
+    if (res.ok) return;
+  } catch {}
+
+  try {
+    await fetch(SHEETS_WEBHOOK_URL, {
+      method: "POST",
+      body: JSON.stringify(eventPayload),
+      mode: "no-cors",
+      keepalive: true,
     });
   } catch {
     // Analytics should never break app flow.
