@@ -47,7 +47,7 @@ ANTHROPIC_API_KEY=sk-ant-v-your-actual-key-here
 ```
 
 ### 2. Connect Frontend to Backend
-Update `src/App.jsx` to call `/api/chat/process` instead of the local mock AI.
+Update `about-me/src/App.jsx` to call `/api/chat/process` instead of the local mock AI.
 
 ### 3. Sync Data Flow
 - Frontend sends: `POST /api/chat/process { text: "user input" }`
@@ -74,7 +74,7 @@ AI       ⏳ (Configured, waiting for API key)
 
 ```
 d:\projects\
-├── src/                    # React frontend
+├── about-me/src/           # React frontend
 │   ├── App.jsx
 │   └── main.jsx
 ├── backend/               # Python FastAPI backend
