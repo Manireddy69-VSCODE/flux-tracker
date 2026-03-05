@@ -281,8 +281,6 @@ export default function App() {
   const bottomRef             = useRef(null);
   const inputRef              = useRef(null);
 
-  const [lastExport, setLastExport] = useState(null);
-
   useEffect(() => { load().then(setDb); }, []);
   useEffect(() => { localStorage.setItem("flux-theme", theme); }, [theme]);
   useEffect(() => {
@@ -295,24 +293,7 @@ export default function App() {
   const S = getS(theme);
 
   const mutate = (fn) => setDb(prev => { const next = { ...prev }; fn(next); return next; });
-
-  // ─── Manual export function ───────────────────────────────────────────────
-  const exportData = () => {
-    if (!db) return;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-    const filename = `flux-backup-${timestamp}.json`;
-    const dataStr = JSON.stringify(db, null, 2);
-    const blob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    setLastExport(new Date());
-  };
-
-  // ─── Core: process any input ──────────────────────────────────────────────
+  // Core: process any input ──────────────────────────────────────────────
   const process = useCallback(async (raw) => {
     const text = raw.trim();
     if (!text) return;
@@ -543,13 +524,6 @@ export default function App() {
               <span style={{ color: v>0?"#e8ff47":"#333", fontSize:10, fontFamily:"'DM Mono',monospace", fontWeight:600 }}>{v}</span>
             </div>
           ))}
-        </div>
-
-        <div style={{ padding:"12px 16px", borderTop:"1px solid #ddd", display:"flex", flexDirection:"column", gap:8 }}>
-          <button onClick={exportData} style={{ padding:"8px 12px", background:"#e8ff47", color:"#0a0a0a", border:"none", borderRadius:4, fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"'Syne',sans-serif" }}>
-            💾 Export Backup
-          </button>
-          {lastExport && <div style={{ color:"#666", fontSize:9, fontFamily:"'DM Mono',monospace", textAlign:"center" }}>Last: {lastExport.toLocaleTimeString()}</div>}
         </div>
       </aside>
 
