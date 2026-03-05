@@ -1,6 +1,6 @@
-from mangum import Mangum
 
-# import your FastAPI app from the backend package
+from mangum import Mangum
 from backend.main import app
 
 handler = Mangum(app)
+
