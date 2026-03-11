@@ -34,3 +34,5 @@ about-me-site/
 
 # Python cache
 backend/__pycache__/
+__pycache__/
+*.pyc
