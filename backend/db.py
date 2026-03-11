@@ -3,13 +3,19 @@ Simple JSON-file based data persistence
 """
 import json
 import os
-from typing import Dict, List, Any
-from datetime import datetime
+from typing import Dict, Any
 
-DB_PATH = "d:\\projects\\data\\flux_data.json"
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+DEFAULT_DATA_DIR = os.path.join(BASE_DIR, "data")
 
-# Ensure data directory exists
-os.makedirs("d:\\projects\\data", exist_ok=True)
+# Vercel's filesystem is read-only except /tmp.
+if os.getenv("VERCEL"):
+    DB_PATH = os.getenv("FLUX_DATA_PATH", "/tmp/flux_data.json")
+else:
+    DB_PATH = os.getenv("FLUX_DATA_PATH", os.path.join(DEFAULT_DATA_DIR, "flux_data.json"))
+
+DB_DIR = os.path.dirname(DB_PATH)
+os.makedirs(DB_DIR, exist_ok=True)
 
 
 def load_data() -> Dict[str, Any]:

@@ -23,7 +23,7 @@ npm run dev
 
 - **Frontend**: React 19 + Vite
 - **Backend**: FastAPI (Python)
-- **Database**: JSON file storage
+- **Database**: JSON file storage (Vercel uses `/tmp` and resets on cold start)
 - **AI**: Claude API ready
 
 ## Features
