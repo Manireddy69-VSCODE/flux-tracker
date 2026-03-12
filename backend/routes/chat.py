@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend import models, schemas
 from backend.ai_service import process_with_ai
+from backend.security import require_admin_key
 from datetime import datetime
 import json
 import uuid
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 
 def uid():
     """Generate unique ID"""
-    return str(uuid.uuid4())[:8]
+    return str(uuid.uuid4())
 
 
 def ts():
@@ -96,7 +97,10 @@ async def get_messages(db: Session = Depends(get_db)):
 
 
 @router.delete("/clear")
-async def clear_all(db: Session = Depends(get_db)):
+async def clear_all(
+    _: None = Depends(require_admin_key),
+    db: Session = Depends(get_db),
+):
     """Clear all data - use with caution!"""
     db.query(models.Message).delete()
     db.query(models.Word).delete()

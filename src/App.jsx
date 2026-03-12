@@ -2,9 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── Backend API ────────────────────────────────────────────────────────────
 const API_URL = import.meta.env.VITE_API_BASE || "/api";
-const SHEETS_WEBHOOK_URL =
-  import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL ||
-  "https://script.google.com/macros/s/AKfycbyS1BAL259pNrBhtANuSRonulCVttncA9S8EewU4E7UmcrTNO3-twprVbNNd3EQwiMIAw/exec";
+const SHEETS_WEBHOOK_URL = (import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL || "").trim();
 const blank = { messages: [], words: [], quotes: [], books: [], workouts: [] };
 const AUTH_KEY = "flux-auth-session";
 const SESSION_KEY = "flux-session-id";
@@ -65,7 +63,11 @@ async function trackEvent(event, payload = {}) {
       keepalive: true,
     });
     if (res.ok) return;
-  } catch {}
+  } catch (e) {
+    void e;
+  }
+
+  if (!SHEETS_WEBHOOK_URL) return;
 
   try {
     await fetch(SHEETS_WEBHOOK_URL, {
@@ -92,7 +94,7 @@ function mockAiResponse(userMsg) {
   if (wordMatch) {
     const w = wordMatch[1];
     return {
-      intent: "WORD_LOOKUP",
+      intent: "WORD",
       reply: `Learning mode: saved "${w}" as a word lookup.`,
       data: {
         word: w,
@@ -382,7 +384,7 @@ export default function App() {
         // Update other data if backend returned structured data
         const data = aiResponse.card_data || {};
         
-        if (aiResponse.intent === "WORD" && data.word) {
+        if ((aiResponse.intent === "WORD" || aiResponse.intent === "WORD_LOOKUP") && data.word) {
           d.words = d.words.filter(w => w.word?.toLowerCase() !== data.word?.toLowerCase());
           d.words.unshift({ 
             id: aiResponse.id, 
@@ -776,7 +778,7 @@ function MessageBubble({ msg, S }) {
       <div style={{ flex:1, maxWidth:560 }}>
         <div style={S.aiBubble}>{msg.text}</div>
         {/* Inline card based on intent */}
-        {msg.intent === "WORD_LOOKUP" && msg.cardData?.word && <WordInlineCard d={msg.cardData} S={S} />}
+        {(msg.intent === "WORD" || msg.intent === "WORD_LOOKUP") && msg.cardData?.word && <WordInlineCard d={msg.cardData} S={S} />}
         {msg.intent === "QUOTE"       && msg.cardData?.text  && <QuoteInlineCard d={msg.cardData} S={S} />}
         {msg.intent === "BOOK"        && msg.cardData?.title && <BookInlineCard d={msg.cardData} S={S} />}
         {msg.intent === "WORKOUT"     && msg.cardData?.type  && <WorkoutInlineCard d={msg.cardData} S={S} />}

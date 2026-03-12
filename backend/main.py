@@ -24,10 +24,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
+raw_origins = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+if raw_origins:
+    allow_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+else:
+    # Safe-ish defaults for local dev. Set CORS_ALLOW_ORIGINS in production.
+    allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+allow_credentials = "*" not in allow_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allow_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -88,7 +97,7 @@ async def track_event(event: schemas.AnalyticsEventCreate, request: Request, db:
         raise HTTPException(status_code=400, detail="Event name is required")
 
     event_row = models.AnalyticsEvent(
-        id=str(__import__("uuid").uuid4())[:8],
+        id=str(__import__("uuid").uuid4()),
         event=event.event.strip(),
         user_email=event.user_email,
         session_id=event.session_id,

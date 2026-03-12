@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/words", tags=["words"])
 
 
 def uid():
-    return str(uuid.uuid4())[:8]
+    return str(uuid.uuid4())
 
 
 @router.post("/", response_model=schemas.WordResponse)

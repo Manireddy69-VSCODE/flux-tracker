@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/library", tags=["library"])
 
 
 def uid():
-    return str(uuid.uuid4())[:8]
+    return str(uuid.uuid4())
 
 
 @router.post("/books", response_model=schemas.BookResponse)
